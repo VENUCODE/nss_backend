@@ -8,6 +8,7 @@ require "../vendor/autoload.php";
 $app = AppFactory::create();
 // config ,routes include section
 require "../config/db.php";
+require("../middleware/urlResolve.php");
 
 
 //middleware adding section
@@ -16,6 +17,8 @@ $app->addRoutingMiddleware();
 $app->add(function (Request $request, Handler $handler) {
     return $handler->handle($request);
 });
+
+
 
 //FIXME - change true to false for first parameter
 $app->addErrorMiddleware(true, true, true);
