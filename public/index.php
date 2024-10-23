@@ -42,7 +42,7 @@ $beforeMiddleware = function (Request $request, Handler $handler) use ($app) {
 
 //FIXME - change true to false for first parameter
 $app->addErrorMiddleware(true, true, true);
-$app->add($beforeMiddleware);
+// $app->add($beforeMiddleware);
 require "../routes/api.php";
 require "../routes/events.php";
 
