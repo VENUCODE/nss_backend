@@ -2,7 +2,7 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 // Route for fetching a specific event by event ID (optional)
-$app->get('/event/all[/{event_id}]', function (Request $request, Response $response, $args) {
+$app->get('/events/event[/{event_id}]', function (Request $request, Response $response, $args) {
     $eventId = $args['event_id'] ?? null;
     // If event_id is provided, fetch the specific event; otherwise, fetch all events
     if ($eventId) {
@@ -45,7 +45,7 @@ $app->get('/event/all[/{event_id}]', function (Request $request, Response $respo
 });
 
 // Route for fetching events by category ID (optional)
-$app->get('/event/category[/{category_id}]', function (Request $request, Response $response, $args) {
+$app->get('/events/category[/{category_id}]', function (Request $request, Response $response, $args) {
     $categoryId = $args['category_id'] ?? null;
 
     if ($categoryId) {
