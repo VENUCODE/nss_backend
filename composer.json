@@ -5,6 +5,13 @@
     "firebase/php-jwt": "^6.10"
   },
   "scripts": {
-    "start": "cd public && php -S localhost:8000 "
+    "test": [
+      "Composer\\Config::disableProcessTimeout",
+      "phpunit"
+    ],
+    "start": [
+      "Composer\\Config::disableProcessTimeout",
+      "php -S localhost:8000 -t public"
+    ]
   }
 }
