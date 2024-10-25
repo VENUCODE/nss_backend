@@ -130,3 +130,17 @@ $app->post('/login', function (Request $request, Response $response, $args) {
     $response->getBody()->write($payload);
     return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 });
+$app->get('/uploads/{filename}', function (Request $request, Response $response,array  $args) {
+
+    $filePath =dirname( __DIR__ ,1). '/uploads/' . basename($args['filename']);
+    
+    if (!file_exists($filePath)) {
+        $response->getBody()->write("File not found.".$filePath);
+        return $response->withStatus(404);
+    }
+
+    $mimeType = mime_content_type($filePath);
+    return $response->withHeader('Content-Type', $mimeType)
+                    ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
+                    ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
+});

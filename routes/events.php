@@ -3,7 +3,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteCollectorProxy;
 function moveUploadedFile($directory, $uploadedFile) {
-    $filename = sprintf('%s.%s', bin2hex(random_bytes(8)), pathinfo($uploadedFile->getClientFilename(), PATHINFO_EXTENSION));
+    $filename = bin2hex(random_bytes(8));
     $uploadedFile->moveTo($directory . DIRECTORY_SEPARATOR . $filename);
     return $filename;
 }
@@ -76,11 +76,11 @@ $app->group('/events', function (RouteCollectorProxy $group) {
     })->setName('category');
     $group->post('/upload', function (Request $request, Response $response) {
         $files = $request->getUploadedFiles();
-        $uploadDirectory = __DIR__ . '/uploads/';
+        $uploadDirectory = dirname(__DIR__,1) . '/uploads/';
     
         // Ensure the directory exists
         if (!is_dir($uploadDirectory)) {
-            mkdir($uploadDirectory, 0777, true);  // Create directory with write permissions
+            mkdir($uploadDirectory, 0777, true);  
         }
     
         if (!array_key_exists('file', $files)) {
@@ -94,13 +94,13 @@ $app->group('/events', function (RouteCollectorProxy $group) {
     
         if ($error!=0) {
             $response->getBody()->write(json_encode(['error' => 'Upload failed due to server error', 'errorcode' => $error]));
+            
             return $response->withStatus(422)->withHeader("Content-Type", "application/json");
         }
-    
-        // Example of additional checks (commented)
         $allowedTypes = ['image/png', 'image/jpeg'];
         if (!in_array($type, $allowedTypes)) {
             $response->getBody()->write(json_encode(['error' => 'File type not allowed', 'type' => $type]));
+            
             return $response->withStatus(422)->withHeader("Content-Type", "application/json");
         }
         if ($file->getSize() > 3000000) {
@@ -109,7 +109,7 @@ $app->group('/events', function (RouteCollectorProxy $group) {
         }
         try {
             $filename = moveUploadedFile($uploadDirectory, $file);
-            $response->getBody()->write(json_encode(['filename' =>$uploadDirectory.$filename]));
+            $response->getBody()->write(json_encode(['filename' =>"/uploads/".$filename]));
             return $response->withStatus(201)->withHeader("Content-Type", "application/json");
         } catch (Throwable $th) {
             $response->getBody()->write(json_encode(['error' => 'File could not be uploaded']));

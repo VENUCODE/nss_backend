@@ -1,7 +1,23 @@
-<IfModule mod_rewrite.c>
-    <!-- RewriteEngine on
-    RewriteRule ^$ public/ [L]
-    RewriteRule (^[^/]*$) public/$1 [L] -->
+RewriteEngine On
 
+# Redirect all requests to index.php except files in uploads directory
 
-</IfModule>
+RewriteCond %{REQUEST*FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.\*)$ index.php?\_route*=$1 [QSA,L]
+
+# Allow direct access to files in the uploads directory
+
+RewriteCond %{REQUEST_URI} ^/uploads/ [NC]
+RewriteRule ^ - [L]
+
+# Prevent directory listing
+
+Options -Indexes
+
+# Prevent access to .htaccess and other hidden files
+
+<FilesMatch "^\.">
+Order allow,deny
+Deny from all
+</FilesMatch>

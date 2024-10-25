@@ -3,6 +3,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as Handler;
 
+
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Exception\HttpNotFoundException;
 
@@ -30,10 +31,11 @@ require "../config/db.php";
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
 
+
 $app->add(function ($request, $handler) {
     $response = $handler->handle($request);
     return $response
-            ->withHeader('Access-Control-Allow-Origin', '*')
+            ->withHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
             ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
             ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
 });
@@ -52,23 +54,18 @@ $beforeMiddleware = function (Request $request, Handler $handler) use ($app) {
     return $handler->handle($request);
 };
 
+
 //FIXME - change true to false for first parameter
 $app->addErrorMiddleware(true, true, true);
-$app->get('/uploads/{file}', function ($request, $response, $args) {
-    $file = '../uploads/' . $args['file'];
-    if (is_file($file)) {
-        return $response->withHeader('Content-Type', mime_content_type($file))
-            ->withHeader('Content-Disposition', 'attachment; filename="' . basename($file) . '"')
-            ->withBody(new \Slim\Psr7\Stream(fopen($file, 'r')));
-    } else {
-        return $response->withStatus(404);
-    }
-});
+
 // $app->add($beforeMiddleware);
 require "../routes/api.php";
 require "../routes/events.php";
 
-$app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function ($request, $response) {
+
+// Route that checks if a file exists in the uploads directory
+
+$app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function (Request $request, Response $response) {
     $response = $response->withStatus(404);
     $response->getBody()->write(json_encode(['message'=>'Route not Found']));
     return $response->withHeader('Content-Type','Application/json');
