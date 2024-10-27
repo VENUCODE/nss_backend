@@ -59,11 +59,12 @@ $beforeMiddleware = function (Request $request, Handler $handler) use ($app) {
 $app->addErrorMiddleware(true, true, true);
 
 // $app->add($beforeMiddleware);
-require "../routes/api.php";
-require "../routes/events.php";
+// require "../routes/api.php";
+// require "../routes/events.php";
+// require("../routes/categories");
+require "../routes/eventRoutes.php";
+require "../routes/categories.php";
 
-
-// Route that checks if a file exists in the uploads directory
 
 $app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function (Request $request, Response $response) {
     $response = $response->withStatus(404);

@@ -22,8 +22,9 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
     $userpassword = $data['userpassword'] ?? null;
     $usernumber = $data['usernumber'] ?? null;
     $useralnumber = $data['useralnumber'] ?? null;
-    $role_id = $data['role_id'] ?? null;
+    $assign_role = $data['assign_role'] ?? null;
     $added_by = $data['added_by'] ?? null;
+
 
     $database = new db();
     $database = $database->connect();
@@ -48,20 +49,19 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
 
     $user_id = $database->lastInsertId();
 
-    if ($role_id) {
-        $stmt = $database->prepare("INSERT INTO members (member_id, role_id, added_by) VALUES (:member_id, :role_id, :added_by)");
-        $stmt->bindParam(':member_id', $user_id);
-        $stmt->bindParam(':role_id', $role_id);
-        $stmt->bindParam(':added_by', $added_by);
-        $stmt->execute();
-
+    if ($assign_role) {
         $hashed_password = password_hash($userpassword, PASSWORD_BCRYPT);
-
         $stmt = $database->prepare("INSERT INTO authusers (id, user_password) VALUES (:user_id, :user_password)");
         $stmt->bindParam(':user_id', $user_id);
         $stmt->bindParam(':user_password', $hashed_password);
         $stmt->execute();
     }
+        $stmt = $database->prepare("INSERT INTO members (member_id, role_id, added_by) VALUES (:member_id, :role_id, :added_by)");
+        $stmt->bindParam(':member_id', $user_id);
+        $rid=1;
+        $stmt->bindParam(':role_id', $rid);
+        $stmt->bindParam(':added_by', $added_by);
+        $stmt->execute();
 
     $res = ["message" => "User created successfully"];
     $payload = json_encode($res);
@@ -72,9 +72,14 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
 $app->post('/login', function (Request $request, Response $response, $args) {
     $data = json_decode($request->getBody(), true);
 
-    $useremail = $data['useremail'] ?? "demo@example.com";
-    $userpassword = $data['userpassword'] ?? "12345";
+    $useremail = $data['useremail'] ?? '';
+    $userpassword = $data['userpassword'] ?? '';
 
+
+    if (empty($useremail) || empty($userpassword)) {
+        $response->getBody()->write(json_encode(["status" => false, "message" => "Insufficient credentials"]));
+        return $response->withStatus(422)->withHeader("Content-type", "application/json");
+    }
     $database = new db();
     $database = $database->connect();
 
@@ -130,9 +135,9 @@ $app->post('/login', function (Request $request, Response $response, $args) {
     $response->getBody()->write($payload);
     return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 });
-$app->get('/uploads/{filename}', function (Request $request, Response $response,array  $args) {
+$app->get('/uploads/event_photos/{filename}', function (Request $request, Response $response,array  $args) {
 
-    $filePath =dirname( __DIR__ ,1). '/uploads/' . basename($args['filename']);
+    $filePath =dirname( __DIR__ ,1). '/uploads/event_photos/' . basename($args['filename']);
     
     if (!file_exists($filePath)) {
         $response->getBody()->write("File not found.".$filePath);
@@ -144,3 +149,18 @@ $app->get('/uploads/{filename}', function (Request $request, Response $response,
                     ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
+$app->get('/uploads/user_photos/{filename}', function (Request $request, Response $response,array  $args) {
+
+    $filePath =dirname( __DIR__ ,1). '/uploads/user_photos/' . basename($args['filename']);
+    
+    if (!file_exists($filePath)) {
+        $response->getBody()->write("File not found.".$filePath);
+        return $response->withStatus(404);
+    }
+
+    $mimeType = mime_content_type($filePath);
+    return $response->withHeader('Content-Type', $mimeType)
+                    ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
+                    ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
+});
+

@@ -5,6 +5,11 @@
     "firebase/php-jwt": "^6.10",
     "oscarotero/psr7-middlewares": "^3.21"
   },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  },
   "scripts": {
     "test": [
       "Composer\\Config::disableProcessTimeout",
