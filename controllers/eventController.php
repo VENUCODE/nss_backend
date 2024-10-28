@@ -8,11 +8,15 @@ use PDOException;
 use Throwable;
 
 class EventController {
+    public function message($request,$response){
+        $response->getBody()->write("Message from controller");
+        return $response;
+    }
     public function getEvents(Request $request, Response $response, $args) {
         $eventId = $args['event_id'] ?? null;
-      
+        
         if ($eventId) {
-            $sql = "SELECT * FROM (select event_id,ec.ec_name,e.ec_id,event_name,hosted_on,location from events e inner join event_category  ec on e.ec_id=ec.ec_id) res WHERE res.event_id = :event_id";
+            $sql = "SELECT * FROM (SELECT event_id, ec.ec_name, e.ec_id, event_name, hosted_on, location FROM events e INNER JOIN event_category ec ON e.ec_id = ec.ec_id) res WHERE res.event_id = :event_id";
             try {
                 $database = new db();
                 $database = $database->connect();
@@ -33,7 +37,7 @@ class EventController {
             }
         } else {
             // Fetch all events if event_id is not provided
-            $sql = "SELECT * FROM (select event_id,ec.ec_name,e.ec_id,event_name,hosted_on,location from events e inner join event_category  ec on e.ec_id=ec.ec_id) res ";
+            $sql = "SELECT * FROM (SELECT event_id, ec.ec_name, e.ec_id, event_name, hosted_on, location FROM events e INNER JOIN event_category ec ON e.ec_id = ec.ec_id) res";
            
             try {
                 $database = new db();
@@ -51,7 +55,7 @@ class EventController {
         }
     }
 
-    public function upload (Request $request, Response $response) {
+    public function upload(Request $request, Response $response) {
         $files = $request->getUploadedFiles();
         $uploadDirectory = dirname(__DIR__, 1) . '/uploads/event_photos/';
     
@@ -91,7 +95,7 @@ class EventController {
     
             try {
                 $filename = moveUploadedFile($uploadDirectory, $file);
-                 $uploadedFilePaths[] = "/uploads/event_photos/" . ltrim($filename, '/');
+                $uploadedFilePaths[] = "/uploads/event_photos/" . ltrim($filename, '/');
             } catch (Throwable $th) {
                 $response->getBody()->write(json_encode(['error' => 'One or more files could not be uploaded']));
                 return $response->withHeader("Content-Type", "application/json")->withStatus(500);
@@ -102,25 +106,26 @@ class EventController {
         return $response->withHeader("Content-Type", "application/json")->withStatus(201);
     }
 
-    public function getAttendees(Request $request,Response $response){
-        $sql = "select user_name,role_id FROM users inner join members on member_id=user_id";
+    public function getAttendees(Request $request, Response $response) {
+        $sql = "SELECT user_name, role_id FROM users INNER JOIN members ON member_id = user_id";
         try {
             $database = new db();
             $database = $database->connect();
             $stmt = $database->prepare($sql);
             $stmt->execute();
 
-            $categories = $stmt->fetchAll(PDO::FETCH_OBJ);
-            $response->getBody()->write(json_encode($categories));
+            $attendees = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $response->getBody()->write(json_encode($attendees));
             return $response->withStatus(200)->withHeader("Content-Type", "application/json");
         } catch (PDOException $e) {
             $response->getBody()->write(json_encode(['error' => ['text' => $e->getMessage()]]));
             return $response->withStatus(500)->withHeader("Content-Type", "application/json");
         }
     }
-    public function getByCategory (Request $request, Response $response, $args) {
+
+    public function getByCategory(Request $request, Response $response, $args) {
         $categoryId = $args['category_id'];
-        $sql = "SELECT * FROM (select event_id,ec.ec_name,e.ec_id,event_name,hosted_on,location from events e inner join event_category  ec on e.ec_id=ec.ec_id) res WHERE res.ec_id= :category_id";
+        $sql = "SELECT * FROM (SELECT event_id, ec.ec_name, e.ec_id, event_name, hosted_on, location FROM events e INNER JOIN event_category ec ON e.ec_id = ec.ec_id) res WHERE res.ec_id = :category_id";
         try {
             $database = new db();
             $database = $database->connect();
@@ -139,6 +144,5 @@ class EventController {
             $response->getBody()->write(json_encode(['error' => ['text' => $e->getMessage()]]));
             return $response->withStatus(500)->withHeader("Content-Type", "application/json");
         }
-    
     }
 }

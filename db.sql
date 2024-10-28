@@ -1,8 +1,5 @@
 
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
 
 
 
@@ -122,26 +119,9 @@ CREATE TABLE `users` (
   `user_name` varchar(255) NOT NULL,
   `user_email` varchar(255) NOT NULL,
   `user_number` bigint(20) DEFAULT NULL,
-  `user_al_number` bigint(20) DEFAULT NULL
+  `user_al_number` bigint(20) DEFAULT NULL,
+  `profile_photo` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `user_photos`
---
-
-CREATE TABLE `user_photos` (
-  `photo_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `user_photo_url` varchar(255) DEFAULT NULL,
-  `uploaded_on` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Indexes for dumped tables
---
-
 --
 -- Indexes for table `authusers`
 --
@@ -211,12 +191,7 @@ ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `user_email` (`user_email`);
 
---
--- Indexes for table `user_photos`
---
-ALTER TABLE `user_photos`
-  ADD PRIMARY KEY (`photo_id`),
-  ADD KEY `fk_user` (`user_id`);
+
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -258,11 +233,7 @@ ALTER TABLE `units`
 ALTER TABLE `users`
   MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
 
---
--- AUTO_INCREMENT for table `user_photos`
---
-ALTER TABLE `user_photos`
-  MODIFY `photo_id` int(11) NOT NULL AUTO_INCREMENT;
+
 
 --
 -- Constraints for dumped tables
@@ -307,11 +278,4 @@ ALTER TABLE `members`
 ALTER TABLE `unit_members`
   ADD CONSTRAINT `fk_member_unit` FOREIGN KEY (`member_id`) REFERENCES `members` (`member_id`),
   ADD CONSTRAINT `fk_unit` FOREIGN KEY (`unit_id`) REFERENCES `units` (`unit_id`);
-
---
--- Constraints for table `user_photos`
---
-ALTER TABLE `user_photos`
-  ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
-COMMIT;
 

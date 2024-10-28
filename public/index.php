@@ -32,13 +32,7 @@ $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
 
 
-$app->add(function ($request, $handler) {
-    $response = $handler->handle($request);
-    return $response
-            ->withHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
-            ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
-            ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-});
+
 $beforeMiddleware = function (Request $request, Handler $handler) use ($app) {
     // Example: Check for a specific header before proceeding
     $auth = $request->getHeaderLine('Authorization');
@@ -59,13 +53,18 @@ $beforeMiddleware = function (Request $request, Handler $handler) use ($app) {
 $app->addErrorMiddleware(true, true, true);
 
 // $app->add($beforeMiddleware);
-// require "../routes/api.php";
-// require "../routes/events.php";
-// require("../routes/categories");
-require "../routes/eventRoutes.php";
-require "../routes/categories.php";
+require "../routes/api.php";
+require "../routes/events.php";
 
 
+
+$app->add(function (Request $request, Handler $handler) {
+    $response = $handler->handle($request);
+    return $response
+            ->withHeader('Access-Control-Allow-Origin', '*')
+            ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+            ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+});
 $app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function (Request $request, Response $response) {
     $response = $response->withStatus(404);
     $response->getBody()->write(json_encode(['message'=>'Route not Found']));

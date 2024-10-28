@@ -90,56 +90,56 @@ $app->group('/events', function (RouteCollectorProxy $group) {
     
     })->setName('category');
     
-    $group->post('/upload', function (Request $request, Response $response) {
-        $files = $request->getUploadedFiles();
-        $uploadDirectory = dirname(__DIR__, 1) . '/uploads/event_photos/';
+    // $group->post('/upload', function (Request $request, Response $response) {
+    //     $files = $request->getUploadedFiles();
+    //     $uploadDirectory = dirname(__DIR__, 1) . '/uploads/event_photos/';
     
-        if (!is_dir($uploadDirectory)) {
-            mkdir($uploadDirectory, 0777, true);
-        }
+    //     if (!is_dir($uploadDirectory)) {
+    //         mkdir($uploadDirectory, 0777, true);
+    //     }
     
-        if (!array_key_exists('event_photos', $files)) {
-            $response->getBody()->write(json_encode("Files do not exist with name event_photos"));
-            return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-        }
+    //     if (!array_key_exists('event_photos', $files)) {
+    //         $response->getBody()->write(json_encode("Files do not exist with name event_photos"));
+    //         return $response->withHeader("Content-Type", "application/json")->withStatus(422);
+    //     }
 
-        if (!is_array($files['event_photos'])) {
-            $files['event_photos'] = [$files['event_photos']];
-        }
-        $allowedTypes = ['image/png', 'image/jpeg'];
-        $uploadedFilePaths = [];
+    //     if (!is_array($files['event_photos'])) {
+    //         $files['event_photos'] = [$files['event_photos']];
+    //     }
+    //     $allowedTypes = ['image/png', 'image/jpeg'];
+    //     $uploadedFilePaths = [];
     
-        foreach ($files['event_photos'] as $file) {
-            $error = $file->getError();
-            $type = $file->getClientMediaType();
+    //     foreach ($files['event_photos'] as $file) {
+    //         $error = $file->getError();
+    //         $type = $file->getClientMediaType();
             
-            if ($error !== UPLOAD_ERR_OK) {
-                $response->getBody()->write(json_encode(['error' => 'Upload failed due to server error', 'errorcode' => $error]));
-                return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-            }
+    //         if ($error !== UPLOAD_ERR_OK) {
+    //             $response->getBody()->write(json_encode(['error' => 'Upload failed due to server error', 'errorcode' => $error]));
+    //             return $response->withHeader("Content-Type", "application/json")->withStatus(422);
+    //         }
     
-            if (!in_array($type, $allowedTypes)) {
-                $response->getBody()->write(json_encode(['error' => 'File type not allowed', 'type' => $type]));
-                return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-            }
+    //         if (!in_array($type, $allowedTypes)) {
+    //             $response->getBody()->write(json_encode(['error' => 'File type not allowed', 'type' => $type]));
+    //             return $response->withHeader("Content-Type", "application/json")->withStatus(422);
+    //         }
     
-            if ($file->getSize() > 3000000) {
-                $response->getBody()->write(json_encode(['error' => 'File size exceeds the limit of 3MB']));
-                return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-            }
+    //         if ($file->getSize() > 3000000) {
+    //             $response->getBody()->write(json_encode(['error' => 'File size exceeds the limit of 3MB']));
+    //             return $response->withHeader("Content-Type", "application/json")->withStatus(422);
+    //         }
     
-            try {
-                $filename = moveUploadedFile($uploadDirectory, $file);
-                 $uploadedFilePaths[] = "/uploads/event_photos/" . ltrim($filename, '/');
-            } catch (Throwable $th) {
-                $response->getBody()->write(json_encode(['error' => 'One or more files could not be uploaded']));
-                return $response->withHeader("Content-Type", "application/json")->withStatus(500);
-            }
-        }
+    //         try {
+    //             $filename = moveUploadedFile($uploadDirectory, $file);
+    //              $uploadedFilePaths[] = "/uploads/event_photos/" . ltrim($filename, '/');
+    //         } catch (Throwable $th) {
+    //             $response->getBody()->write(json_encode(['error' => 'One or more files could not be uploaded']));
+    //             return $response->withHeader("Content-Type", "application/json")->withStatus(500);
+    //         }
+    //     }
     
-        $response->getBody()->write(json_encode(['files' => $uploadedFilePaths]));
-        return $response->withHeader("Content-Type", "application/json")->withStatus(201);
-    })->setName('upload');
+    //     $response->getBody()->write(json_encode(['files' => $uploadedFilePaths]));
+    //     return $response->withHeader("Content-Type", "application/json")->withStatus(201);
+    // })->setName('upload');
     
     $group->get('/getcategories',function(Request $request,Response $response){
         $sql = "SELECT ec_id,ec_name FROM event_category order by ec_id";
