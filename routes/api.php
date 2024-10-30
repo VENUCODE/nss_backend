@@ -106,7 +106,6 @@ $app->post('/login', function (Request $request, Response $response, $args) {
     $useremail = $data['useremail'] ?? '';
     $userpassword = $data['userpassword'] ?? '';
 
-
     if (empty($useremail) || empty($userpassword)) {
         $response->getBody()->write(json_encode(["status" => false, "message" => "Insufficient credentials"]));
         return $response->withStatus(422)->withHeader("Content-type", "application/json");
@@ -114,7 +113,7 @@ $app->post('/login', function (Request $request, Response $response, $args) {
     $database = new db();
     $database = $database->connect();
 
-    $stmt = $database->prepare("SELECT user_id FROM users WHERE user_email = :email");
+    $stmt = $database->prepare("SELECT * FROM users WHERE user_email = :email");
     $stmt->bindParam(':email', $useremail);
     $stmt->execute();
 
@@ -125,8 +124,8 @@ $app->post('/login', function (Request $request, Response $response, $args) {
         return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
     }
 
-    $user_id = $stmt->fetchColumn();
-
+   $userData = $stmt->fetch();
+    $user_id = $userData['user_id'];
     $stmt = $database->prepare("SELECT user_password FROM authusers WHERE id = :user_id");
     $stmt->bindParam(':user_id', $user_id);
     $stmt->execute();
@@ -147,16 +146,16 @@ $app->post('/login', function (Request $request, Response $response, $args) {
         return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
     }
 
-    $secret_key = $_ENV['APP_JWT_SECRET'] ?? 'default_secret'; 
+    $secret_key = $_ENV['APP_JWT_SECRET'] ?? 'auth.nss.rgukt.ong'; 
 
     $issuedAt = new DateTime();
-    $expire = $issuedAt->modify("+1 hour");
+    $expire = $issuedAt->modify("+2 hour");
 
     $token = [
         "iss" => "nss.rguktong.ac.in",
         "iat" => $issuedAt->getTimestamp(),
         "exp" => $expire->getTimestamp(),
-        "data" => ["user_id" => $user_id]
+        $data = ["user_id" => $userData['user_id']]
     ];
 
     $jwt = JWT::encode($token, $secret_key, "HS256");

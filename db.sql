@@ -120,7 +120,8 @@ CREATE TABLE `users` (
   `user_email` varchar(255) NOT NULL,
   `user_number` bigint(20) DEFAULT NULL,
   `user_al_number` bigint(20) DEFAULT NULL,
-  `profile_photo` varchar(255) DEFAULT NULL
+  `profile_photo` varchar(255) DEFAULT NULL,
+  `description` text default null
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 --
 -- Indexes for table `authusers`
