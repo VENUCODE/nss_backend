@@ -146,21 +146,22 @@ $app->post('/login', function (Request $request, Response $response, $args) {
         return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
     }
 
-    $secret_key = $_ENV['APP_JWT_SECRET'] ?? 'auth.nss.rgukt.ong'; 
+    $secret_key = $_ENV['APP_JWT_SECRET'] ?? 'rgukt@679@nss';
 
     $issuedAt = new DateTime();
-    $expire = $issuedAt->modify("+2 hour");
+    $expire = (new DateTime())->modify("+2 hour");
 
     $token = [
-        "iss" => "nss.rguktong.ac.in",
+        // "iss" => "nss.rguktong.ac.in",
         "iat" => $issuedAt->getTimestamp(),
         "exp" => $expire->getTimestamp(),
-        $data = ["user_id" => $userData['user_id']]
+        "data" => ["user_id" => $userData['user_id']]
     ];
 
     $jwt = JWT::encode($token, $secret_key, "HS256");
 
     $res = ["message" => "Login successful", "token" => $jwt];
+
     $payload = json_encode($res);
     $response->getBody()->write($payload);
     return $response->withHeader('Content-Type', 'application/json')->withStatus(200);

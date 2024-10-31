@@ -33,20 +33,6 @@ $app->addRoutingMiddleware();
 
 
 
-$beforeMiddleware = function (Request $request, Handler $handler) use ($app) {
-    // Example: Check for a specific header before proceeding
-    $auth = $request->getHeaderLine('Authorization');
-    if (!$auth) {
-        // Short-circuit and return a response immediately
-        $response = $app->getResponseFactory()->createResponse();
-        $response->getBody()->write(json_encode(['message'=>'unautherized access']));
-        
-        return $response->withStatus(401)->withHeader('Content-Type','Application/json');
-    }
-
-    // Proceed with the next middleware
-    return $handler->handle($request);
-};
 
 
 //FIXME - change true to false for first parameter
@@ -60,11 +46,22 @@ require "../routes/events.php";
 
 $app->add(function (Request $request, Handler $handler) {
     $response = $handler->handle($request);
-    return $response
-            ->withHeader('Access-Control-Allow-Origin', '*')
-            ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
-            ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+
+    // Allowing CORS headers
+    $response = $response
+        ->withHeader('Access-Control-Allow-Origin', '*')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+
+    // Handle preflight OPTIONS request
+    if ($request->getMethod() === 'OPTIONS') {
+        // If it is a preflight request, end here
+        return $response->withStatus(204); // No Content
+    }
+
+    return $response;
 });
+
 $app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function (Request $request, Response $response) {
     $response = $response->withStatus(404);
     $response->getBody()->write(json_encode(['message'=>'Route not Found']));

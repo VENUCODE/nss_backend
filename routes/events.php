@@ -2,12 +2,76 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteCollectorProxy;
-function moveUploadedFile($directory, $uploadedFile) {
-    $filename = bin2hex(random_bytes(8));
-    $uploadedFile->moveTo($directory  . $filename);
-    return $filename;
-}
-$app->group('/events', function (RouteCollectorProxy $group) {
+require_once "../middleware/AuthenticationMiddleware.php";
+require_once "../middleware/FileSizeMiddleware.php";
+require_once "../middleware/FileExtensionMiddleware.php";
+
+$MAX_SIZE=4*1024*1024;
+
+$app->post("/addEvent", function (Request $request, Response $response) {
+    $fileNames = $request->getAttribute('fileNames');
+    $parsedBody = $request->getAttribute('parsedBody');
+    $userId = $request->getAttribute('user_id'); 
+
+    $eventName = $parsedBody['ename'];
+    $ecId = $parsedBody['ec_id'];
+    $hostedOn = $parsedBody['hosted_on'];
+    $location = $parsedBody['location'];
+    $description = $parsedBody['description'];
+    $eattend = $parsedBody['eattend'] ?? []; 
+    
+    $database = new db();
+    $dbConnection = $database->connect();
+
+    try {
+        $dbConnection->beginTransaction();
+
+        $stmt = $dbConnection->prepare("INSERT INTO events (event_name, ec_id, hosted_on, location, description) VALUES (:event_name, :ec_id, :hosted_on, :location, :description)");
+        $stmt->bindParam(':event_name', $eventName);
+        $stmt->bindParam(':ec_id', $ecId);
+        $stmt->bindParam(':hosted_on', $hostedOn);
+        $stmt->bindParam(':location', $location);
+        $stmt->bindParam(':description', $description);
+        $stmt->execute();
+        
+        $eventId = $dbConnection->lastInsertId();
+
+        if (!empty($fileNames)) {
+            $photoStmt = $dbConnection->prepare("INSERT INTO event_photos (event_id, photo_url) VALUES (:eid, :photo_url)");
+            foreach ($fileNames as $photoUrl) {
+                $photoStmt->bindParam(':eid', $eventId);
+                $photoStmt->bindParam(':photo_url',"/uploads/event_photos/".$photoUrl);
+                $photoStmt->execute();
+            }
+        }
+
+        if (!empty($eattend)) {
+            $attendeeStmt = $dbConnection->prepare("INSERT INTO event_attendees (event_id, member_id) VALUES (:eid, :ettend_id)");
+            foreach ($eattend as $attendeeId) {
+                $attendeeStmt->bindParam(':eid', $eventId);
+                $attendeeStmt->bindParam(':ettend_id', $attendeeId);
+                $attendeeStmt->execute();
+            }
+        }
+
+        $dbConnection->commit();
+
+        $response->getBody()->write(json_encode(['message' => 'Event added successfully']));
+
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+
+    } catch (Exception $e) {
+        $dbConnection->rollBack();
+        $response->getBody()->write(json_encode(['error' => 'Failed to add event: ' . $e->getMessage()]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+})
+->add($AuthMiddleware)
+->add(fileExtensionMiddleware(['png', 'jpg', 'jpeg']))
+->add(fileSizeMiddleware($MAX_SIZE))
+->add(UploadMiddleware(dirname(__DIR__,1)."/uploads/temp"));
+
+$app->group('/events', function (RouteCollectorProxy $group) use($AuthMiddleware) {
     $group->get('/event[/{event_id}]', function (Request $request, Response $response, $args) {
         $eventId = $args['event_id'] ?? null;
       
@@ -51,14 +115,13 @@ $app->group('/events', function (RouteCollectorProxy $group) {
         }
     })->setName('event');
     $group->get('/getattendees',function(Request $request,Response $response){
-        $sql = "select user_name,role_id FROM users inner join members on member_id=user_id";
+        $sql = "select user_id, user_name FROM users inner join members on member_id=user_id";
         try {
             $database = new db();
             $database = $database->connect();
             $stmt = $database->prepare($sql);
             $stmt->execute();
-
-            $categories = $stmt->fetchAll(PDO::FETCH_OBJ);
+            $categories=$stmt->fetchAll(PDO::FETCH_OBJ);
             $response->getBody()->write(json_encode($categories));
             return $response->withStatus(200)->withHeader("Content-Type", "application/json");
         } catch (PDOException $e) {
@@ -68,7 +131,7 @@ $app->group('/events', function (RouteCollectorProxy $group) {
     });
     $group->get('/category/{category_id}', function (Request $request, Response $response, $args) {
         $categoryId = $args['category_id'];
-        $sql = "SELECT * FROM (select event_id,ec.ec_name,e.ec_id,event_name,hosted_on,location from events e inner join event_category  ec on e.ec_id=ec.ec_id) res WHERE res.ec_id= :category_id";
+        $sql = "SELECT * FROM (select event_id,ec.ec_name,e.ec_id,event_name,hosted_on,location from events e inner join event_category  ec on e.ec_id=ec.ec_id) res WHERE res.ec_id= :category_id order by hosted_on desc";
         try {
             $database = new db();
             $database = $database->connect();
@@ -90,56 +153,7 @@ $app->group('/events', function (RouteCollectorProxy $group) {
     
     })->setName('category');
     
-    // $group->post('/upload', function (Request $request, Response $response) {
-    //     $files = $request->getUploadedFiles();
-    //     $uploadDirectory = dirname(__DIR__, 1) . '/uploads/event_photos/';
-    
-    //     if (!is_dir($uploadDirectory)) {
-    //         mkdir($uploadDirectory, 0777, true);
-    //     }
-    
-    //     if (!array_key_exists('event_photos', $files)) {
-    //         $response->getBody()->write(json_encode("Files do not exist with name event_photos"));
-    //         return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-    //     }
-
-    //     if (!is_array($files['event_photos'])) {
-    //         $files['event_photos'] = [$files['event_photos']];
-    //     }
-    //     $allowedTypes = ['image/png', 'image/jpeg'];
-    //     $uploadedFilePaths = [];
-    
-    //     foreach ($files['event_photos'] as $file) {
-    //         $error = $file->getError();
-    //         $type = $file->getClientMediaType();
-            
-    //         if ($error !== UPLOAD_ERR_OK) {
-    //             $response->getBody()->write(json_encode(['error' => 'Upload failed due to server error', 'errorcode' => $error]));
-    //             return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-    //         }
-    
-    //         if (!in_array($type, $allowedTypes)) {
-    //             $response->getBody()->write(json_encode(['error' => 'File type not allowed', 'type' => $type]));
-    //             return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-    //         }
-    
-    //         if ($file->getSize() > 3000000) {
-    //             $response->getBody()->write(json_encode(['error' => 'File size exceeds the limit of 3MB']));
-    //             return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-    //         }
-    
-    //         try {
-    //             $filename = moveUploadedFile($uploadDirectory, $file);
-    //              $uploadedFilePaths[] = "/uploads/event_photos/" . ltrim($filename, '/');
-    //         } catch (Throwable $th) {
-    //             $response->getBody()->write(json_encode(['error' => 'One or more files could not be uploaded']));
-    //             return $response->withHeader("Content-Type", "application/json")->withStatus(500);
-    //         }
-    //     }
-    
-    //     $response->getBody()->write(json_encode(['files' => $uploadedFilePaths]));
-    //     return $response->withHeader("Content-Type", "application/json")->withStatus(201);
-    // })->setName('upload');
+   
     
     $group->get('/getcategories',function(Request $request,Response $response){
         $sql = "SELECT ec_id,ec_name FROM event_category order by ec_id";
@@ -151,7 +165,7 @@ $app->group('/events', function (RouteCollectorProxy $group) {
 
             $categories = $stmt->fetchAll(PDO::FETCH_OBJ);
             $response->getBody()->write(json_encode($categories));
-            return $response->withStatus(200)->withHeader("Content-Type", "application/json");
+            return $response->withStatus(201)->withHeader("Content-Type", "application/json");
         } catch (PDOException $e) {
             $response->getBody()->write(json_encode(['error' => ['text' => $e->getMessage()]]));
             return $response->withStatus(500)->withHeader("Content-Type", "application/json");
@@ -163,7 +177,7 @@ $app->group('/events', function (RouteCollectorProxy $group) {
         $categoryName = $data['category_name'] ?? null;
         $categoryName = trim(strtolower(preg_replace('/\s+/', ' ', $categoryName)));
         if (!$categoryName) {
-            $response->getBody()->write(json_encode(['error' => 'Category name is required']));
+            $response->getBody()->write(json_encode(["message"=>"Category name cant be empty",'error' => 'Category name is required']));
             return $response->withHeader("Content-Type", "application/json")->withStatus(422);
         }
         $sql = "SELECT ec_id FROM event_category WHERE lower(ec_name) = :category_name";
@@ -175,8 +189,8 @@ $app->group('/events', function (RouteCollectorProxy $group) {
             $stmt->execute();
             $category = $stmt->fetch(PDO::FETCH_OBJ);
             if ($category) {
-                $response->getBody()->write(json_encode(['error' => 'Category already exists']));
-                return $response->withHeader("Content-Type", "application/json")->withStatus(422);
+                $response->getBody()->write(json_encode(["message"=>"Category already exists",'error' => 'Category already exists']));
+                return $response->withHeader("Content-Type", "application/json")->withStatus(400);
             }
 
             $sql = "INSERT INTO event_category (ec_name) VALUES (:category_name)";
@@ -187,10 +201,10 @@ $app->group('/events', function (RouteCollectorProxy $group) {
             $response->getBody()->write(json_encode(['message' => 'Category added successfully']));
             return $response->withHeader("Content-Type", "application/json")->withStatus(201);
         } catch (PDOException $e) {
-            $response->getBody()->write(json_encode(['error' => ['text' => $e->getMessage()]]));
+            $response->getBody()->write(json_encode(["message"=>"failed to add Category",'error' => ['text' => $e->getMessage()]]));
             return $response->withHeader("Content-Type", "application/json")->withStatus(500);
         }
-    })->setName('addcategory');
+    })->add($AuthMiddleware);
 
     $group->put('/updatecategory', function (Request $request, Response $response, $args) {
         $data = $request->getParsedBody();
