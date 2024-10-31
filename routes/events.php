@@ -40,7 +40,8 @@ $app->post("/addEvent", function (Request $request, Response $response) {
             $photoStmt = $dbConnection->prepare("INSERT INTO event_photos (event_id, photo_url) VALUES (:eid, :photo_url)");
             foreach ($fileNames as $photoUrl) {
                 $photoStmt->bindParam(':eid', $eventId);
-                $photoStmt->bindParam(':photo_url',"/uploads/event_photos/".$photoUrl);
+                $url="/uploads/event_photos/".$photoUrl;
+                $photoStmt->bindParam(':photo_url',$url);
                 $photoStmt->execute();
             }
         }
@@ -69,43 +70,138 @@ $app->post("/addEvent", function (Request $request, Response $response) {
 ->add($AuthMiddleware)
 ->add(fileExtensionMiddleware(['png', 'jpg', 'jpeg']))
 ->add(fileSizeMiddleware($MAX_SIZE))
-->add(UploadMiddleware(dirname(__DIR__,1)."/uploads/temp"));
+->add(UploadMiddleware(dirname(__DIR__,1)."/uploads/event_photos"));
 
 $app->group('/events', function (RouteCollectorProxy $group) use($AuthMiddleware) {
     $group->get('/event[/{event_id}]', function (Request $request, Response $response, $args) {
         $eventId = $args['event_id'] ?? null;
       
         if ($eventId) {
-            $sql = "SELECT * FROM (select event_id,ec.ec_name,e.ec_id,event_name,hosted_on,location from events e inner join event_category  ec on e.ec_id=ec.ec_id) res WHERE res.event_id = :event_id";
+            $sql = "
+                SELECT 
+                    res.event_id, 
+                    res.ec_name, 
+                    res.ec_id, 
+                    res.event_name, 
+                    res.hosted_on, 
+                    res.location, 
+                    COALESCE(photo_urls.photo_urls, '[]') AS photo_urls, 
+                    COALESCE(attendee_ids.attendees, '[]') AS attendees 
+                FROM 
+                    (SELECT 
+                        e.event_id, 
+                        ec.ec_name, 
+                        e.ec_id, 
+                        e.event_name, 
+                        e.hosted_on, 
+                        e.location 
+                     FROM 
+                        events e 
+                     INNER JOIN 
+                        event_category ec ON e.ec_id = ec.ec_id
+                     WHERE 
+                        e.event_id = :event_id) AS res 
+                LEFT JOIN 
+                    (SELECT 
+                        event_id, 
+                        CONCAT('[', GROUP_CONCAT('\"', photo_url, '\"'), ']') AS photo_urls 
+                     FROM 
+                        event_photos 
+                     GROUP BY 
+                        event_id) AS photo_urls ON res.event_id = photo_urls.event_id 
+                LEFT JOIN 
+                    (SELECT 
+                        event_id, 
+                        CONCAT('[', GROUP_CONCAT('\"', member_id, '\"'), ']') AS attendees 
+                     FROM 
+                        event_attendees 
+                     GROUP BY 
+                        event_id) AS attendee_ids ON res.event_id = attendee_ids.event_id;
+            ";
+        
             try {
+                // Database connection
                 $database = new db();
                 $database = $database->connect();
+                
                 $stmt = $database->prepare($sql);
-                $stmt->bindParam(':event_id', $eventId);
+                $stmt->bindParam(':event_id', $eventId, PDO::PARAM_INT);
                 $stmt->execute();
-
-                $event = $stmt->fetch(PDO::FETCH_OBJ);
+        
+                $event = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+                // Check if the event was found and process response
                 if ($event) {
+                    $event['photo_urls'] = json_decode($event['photo_urls'], true);
+                    $event['attendees'] = json_decode($event['attendees'], true);
                     $response->getBody()->write(json_encode($event));
+                    $status = 200;
                 } else {
                     $response->getBody()->write(json_encode(['message' => 'Event not found']));
+                    $status = 404;
                 }
-                return $response->withStatus(200)->withHeader("Content-Type", "application/json");
+        
+                $database = null; // Close connection
+        
+                return $response->withStatus($status)->withHeader("Content-Type", "application/json");
+        
             } catch (PDOException $e) {
                 $response->getBody()->write(json_encode(['error' => ['text' => $e->getMessage()]]));
                 return $response->withStatus(500)->withHeader("Content-Type", "application/json");
             }
-        } else {
-            // Fetch all events if event_id is not provided
-            $sql = "SELECT * FROM (select event_id,ec.ec_name,e.ec_id,event_name,hosted_on,location from events e inner join event_category  ec on e.ec_id=ec.ec_id) res ";
-           
+        }else {
+          
+            $sql = "
+    SELECT 
+        res.event_id, 
+        res.ec_name, 
+        res.ec_id, 
+        res.event_name, 
+        res.hosted_on, 
+        res.location, 
+        COALESCE(photo_urls.photo_urls, '[]') AS photo_urls, 
+        COALESCE(attendee_ids.attendees, '[]') AS attendees 
+    FROM 
+        (SELECT 
+            e.event_id, 
+            ec.ec_name, 
+            e.ec_id, 
+            e.event_name, 
+            e.hosted_on, 
+            e.location 
+         FROM 
+            events e 
+         INNER JOIN 
+            event_category ec ON e.ec_id = ec.ec_id) AS res 
+    LEFT JOIN 
+        (SELECT 
+            event_id, 
+            CONCAT('[', GROUP_CONCAT('\"', photo_url, '\"'), ']') AS photo_urls 
+         FROM 
+            event_photos 
+         GROUP BY 
+            event_id) AS photo_urls ON res.event_id = photo_urls.event_id 
+    LEFT JOIN 
+        (SELECT 
+            event_id, 
+            CONCAT('[', GROUP_CONCAT('\"', member_id, '\"'), ']') AS attendees 
+         FROM 
+            event_attendees 
+         GROUP BY 
+            event_id) AS attendee_ids ON res.event_id = attendee_ids.event_id;
+";
+
             try {
                 $database = new db();
                 $database = $database->connect();
                 $stmt = $database->prepare($sql);
                 $stmt->execute();
 
-                $events = $stmt->fetchAll(PDO::FETCH_OBJ);
+                $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($events as &$event) {
+                    $event['photo_urls'] = json_decode($event['photo_urls'], true);
+                    $event['attendees'] = json_decode($event['attendees'], true);
+                }
                 $response->getBody()->write(json_encode($events));
                 return $response->withStatus(200)->withHeader("Content-Type", "application/json");
             } catch (PDOException $e) {

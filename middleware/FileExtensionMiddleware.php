@@ -25,7 +25,9 @@ function fileExtensionMiddleware($allowedExtensions) {
             }
         }
         if (!empty($invalidExtensions)) {
-            return $response->withStatus(400)->withJson(['error' => 'Invalid file extensions: ' . implode(', ', $invalidExtensions)]);
+            $response = new \Slim\Http\Response();
+            $response->getBody()->write('Invalid file extensions: ' . implode(', ', $invalidExtensions));
+            return $response->withStatus(400);
         }
         return $handler->handle($request);
     };
