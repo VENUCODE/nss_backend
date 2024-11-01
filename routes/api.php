@@ -3,7 +3,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Firebase\JWT\JWT;
 require_once __DIR__ . "/../middleware/FileUploadMiddleware.php";
-
+require_once __DIR__ . "/../middleware/AuthenticationMiddleware.php";
 
 $app->get('/', function (Request $request, Response $response, $args) {
     $res = ["message" => "Server is running"];
@@ -195,3 +195,31 @@ $app->get('/uploads/user_photos/{filename}', function (Request $request, Respons
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
 
+$app->get("/getuser", function (Request $request, Response $response){
+    $user_id=$request->getAttribute("user_id")??null;
+    if(!$user_id){
+        $response->getBody()->write(json_encode(["message" => "User not found", "error" => "Invalid user ID"])); 
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+    $sql="SELECT * FROM users where user_id=:userid";
+    try {
+        $database=new db();
+        $database=$database->connect();
+        $stmt = $database->prepare($sql);
+        $stmt->bindParam(':userid', $user_id);
+        $stmt->execute();
+        $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $response->getBody()->write(json_encode($userData));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    } catch (PDOException $e) {
+        $res = ["message" => "Database error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    } catch (Exception $e) {
+        $res = ["message" => "Internal server error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+})->add($AuthMiddleware);
