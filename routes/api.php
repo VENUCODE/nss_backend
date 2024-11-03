@@ -101,6 +101,38 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
     }
 })->add(UploadMiddleware(dirname(__DIR__,1)."/uploads/user_photos"));
 
+$app->post('/addBannerImages', function (Request $request, Response $response, $args) {
+    try {
+        $data = $request->getAttribute('parsedBody') ?? [];
+        $filePaths = $request->getAttribute('fileNames') ?? [];
+        $bannerImage = NULL;
+        if (!empty($filePaths)) {
+            $bannerImage = $filePaths["bannerImage"];
+        }
+
+        $database = new db();
+        $database = $database->connect();
+
+        $stmt = $database->prepare("INSERT INTO banner_images (image_path) VALUES (:image_path)");
+        $stmt->bindParam(':image_path', $bannerImage);
+        $stmt->execute();
+
+        $res = ["message" => "Banner image added successfully"];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+    } catch (PDOException $e) {
+        $res = ["message" => "Database error: " . $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    } catch (Exception $e) {
+        $res = ["message" => "Internal server error: " . $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+})->add($AuthMiddleware)->add(UploadMiddleware(dirname(__DIR__,1)."/uploads/banner_photos"));
 $app->post('/login', function (Request $request, Response $response, $args) {
     $data = json_decode($request->getBody(), true);
 
