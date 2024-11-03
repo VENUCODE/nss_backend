@@ -61,6 +61,29 @@ $app->add(function (Request $request, Handler $handler) {
 
     return $response;
 });
+// $app->get('/uploads/user_photos/{filename}', function (Request $request, Response $response, $args) {
+//     $filename = $args['filename'];
+//     $filepath = __DIR__ . '/../uploads/user_photos/' . $filename;
+//     if (file_exists($filepath)) {
+//         return $response->withHeader('Content-Type', 'image/jpeg')
+//             ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+//             ->withBody(new \Slim\Psr7\Stream($filepath));
+//     } else {
+//         return $response->withStatus(404);
+//     }
+// });
+
+// $app->get('/uploads/event_photos/{filename}', function (Request $request, Response $response, $args) {
+//     $filename = $args['filename'];
+//     $filepath = __DIR__ . '/../uploads/event_photos/' . $filename;
+//     if (file_exists($filepath)) {
+//         return $response->withHeader('Content-Type', 'image/jpeg')
+//             ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+//             ->withBody(new \Slim\Psr7\Stream($filepath));
+//     } else {
+//         return $response->withStatus(404);
+//     }
+// });
 
 $app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function (Request $request, Response $response) {
     $response = $response->withStatus(404);

@@ -33,8 +33,9 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
         $filePaths = $request->getAttribute('fileNames') ?? [];
         $profilePhoto=NULL;
         if (!empty($filePaths)) {
-            $profilePhoto=$filePaths["profilePhoto"];
+           $profilePhoto=$filePaths["profilePhoto"];
         }
+  
         $username = $data['username'] ?? null;
         $useremail = $data['useremail'] ?? null;
         $userpassword = $data['userpassword'] ?? null;
@@ -180,6 +181,7 @@ $app->get('/uploads/event_photos/{filename}', function (Request $request, Respon
                     ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
+
 $app->get('/uploads/user_photos/{filename}', function (Request $request, Response $response,array  $args) {
 
     $filePath =dirname( __DIR__ ,1). '/uploads/user_photos/' . basename($args['filename']);
@@ -195,12 +197,50 @@ $app->get('/uploads/user_photos/{filename}', function (Request $request, Respons
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
 
+
+$app->get("/getusers", function (Request $request, Response $response) {
+    $data = json_decode($request->getBody()->getContents(), true);
+    $user_ids = $data['user_ids'] ?? null;
+
+    if (empty($user_ids) || !is_array($user_ids)) {
+        $response->getBody()->write(json_encode(["message" => "Invalid input", "error" => "User IDs should be a non-empty array"])); 
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    }
+
+    $placeholders = implode(',', array_fill(0, count($user_ids), '?'));
+    $sql = "SELECT user_id, user_name, user_email, profile_photo FROM users WHERE user_id IN ($placeholders)";
+    
+    try {
+        $database = new db();
+        $database = $database->connect();
+        $stmt = $database->prepare($sql);
+        $stmt->execute($user_ids);
+        $userData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $response->getBody()->write(json_encode($userData));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    } catch (PDOException $e) {
+        $res = ["message" => "Database error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    } catch (Exception $e) {
+        $res = ["message" => "Internal server error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+});
+
+
+
 $app->get("/getuser", function (Request $request, Response $response){
     $user_id=$request->getAttribute("user_id")??null;
     if(!$user_id){
         $response->getBody()->write(json_encode(["message" => "User not found", "error" => "Invalid user ID"])); 
         return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
     }
+    
     $sql="SELECT * FROM users where user_id=:userid";
     try {
         $database=new db();

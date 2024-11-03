@@ -13,6 +13,7 @@ function fileSizeMiddleware($maxsize = 5 * 1024 * 1024) {
                    
                     $size = $singleFile->getSize();
                     if ($size > $maxsize) {
+                        $
                         $exceededSizeFiles[] = "{$singleFile->getClientFilename()} (size: " . formatBytes($size) . ")";
                     }
                 }
