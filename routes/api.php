@@ -38,6 +38,7 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
   
         $username = $data['username'] ?? null;
         $useremail = $data['useremail'] ?? null;
+        $designation = $data['userdesignation'] ?? null;
         $userpassword = $data['userpassword'] ?? null;
         $usernumber = $data['usernumber'] ?? null;
         $useralnumber = $data['useralnumber'] ?? null;
@@ -76,10 +77,11 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
             $stmt->bindParam(':user_password', $hashed_password);
             $stmt->execute();
         
-            $stmt = $database->prepare("INSERT INTO members (member_id, role_id, added_by) VALUES (:member_id, :role_id, :added_by)");
+            $stmt = $database->prepare("INSERT INTO members (member_id, role_id,designation, added_by) VALUES (:member_id, :role_id,:desig, :added_by)");
             $stmt->bindParam(':member_id', $user_id);
             $rid=1;
             $stmt->bindParam(':role_id', $rid);
+            $stmt->bindParam(':design',$designation);
             $stmt->bindParam(':added_by', $added_by);
             $stmt->execute();
         }
@@ -103,20 +105,19 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
 
 $app->post('/addBannerImages', function (Request $request, Response $response, $args) {
     try {
-        $data = $request->getAttribute('parsedBody') ?? [];
         $filePaths = $request->getAttribute('fileNames') ?? [];
-        $bannerImage = NULL;
-        if (!empty($filePaths)) {
-            $bannerImage = $filePaths["bannerImage"];
+        if (empty($filePaths)) {
+            $response->getBody()->write(json_encode(["message"=>"Banner images can't be emtpy","error"=>"No images sent"]));
+            return $response->withHeader("Content-type","application/json")->withStatus(401);
         }
-
         $database = new db();
         $database = $database->connect();
-
-        $stmt = $database->prepare("INSERT INTO banner_images (image_path) VALUES (:image_path)");
-        $stmt->bindParam(':image_path', $bannerImage);
-        $stmt->execute();
-
+        foreach ($filePaths as $bannerImage) {
+            $stmt = $database->prepare("INSERT INTO banner_images (photo_url) VALUES (:image_path)");
+            $bannerImage="/uploads/banner_photos/".$bannerImage;
+            $stmt->bindParam(':image_path', $bannerImage);
+            $stmt->execute();
+        }
         $res = ["message" => "Banner image added successfully"];
         $payload = json_encode($res);
         $response->getBody()->write($payload);
@@ -127,12 +128,13 @@ $app->post('/addBannerImages', function (Request $request, Response $response, $
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     } catch (Exception $e) {
-        $res = ["message" => "Internal server error: " . $e->getMessage()];
+        $res = ["message" => "Internal server error: " ,"error"=>$e->getMessage()];
         $payload = json_encode($res);
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
 })->add($AuthMiddleware)->add(UploadMiddleware(dirname(__DIR__,1)."/uploads/banner_photos"));
+
 $app->post('/login', function (Request $request, Response $response, $args) {
     $data = json_decode($request->getBody(), true);
 
@@ -229,6 +231,20 @@ $app->get('/uploads/user_photos/{filename}', function (Request $request, Respons
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
 
+$app->get('/uploads/banner_photos/{filename}', function (Request $request, Response $response,array  $args) {
+
+    $filePath =dirname( __DIR__ ,1). '/uploads/banner_photos/' . basename($args['filename']);
+    
+    if (!file_exists($filePath)) {
+        $response->getBody()->write("File not found.".$filePath);
+        return $response->withStatus(404);
+    }
+
+    $mimeType = mime_content_type($filePath);
+    return $response->withHeader('Content-Type', $mimeType)
+                    ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
+                    ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
+});
 
 $app->get("/getusers", function (Request $request, Response $response) {
     $data = json_decode($request->getBody()->getContents(), true);
@@ -264,8 +280,6 @@ $app->get("/getusers", function (Request $request, Response $response) {
     }
 });
 
-
-
 $app->get("/getuser", function (Request $request, Response $response){
     $user_id=$request->getAttribute("user_id")??null;
     if(!$user_id){
@@ -295,3 +309,46 @@ $app->get("/getuser", function (Request $request, Response $response){
         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
 })->add($AuthMiddleware);
+$app->get("/geteventphotos", function (Request $request, Response $response) {
+    try {
+        $database = new db();
+        $database = $database->connect();
+        $stmt = $database->prepare("SELECT event_id, photo_url,uploaded_on FROM event_photos");
+        $stmt->execute();
+        $eventPhotos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $response->getBody()->write(json_encode($eventPhotos));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    } catch (PDOException $e) {
+        $res = ["message" => "Database error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    } catch (Exception $e) {
+        $res = ["message" => "Internal server error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+});
+
+$app->get("/getbannerimages", function (Request $request, Response $response) {
+    try {
+        $database = new db();
+        $database = $database->connect();
+        $stmt = $database->prepare("SELECT photo_url FROM banner_images order by sno desc limit 6");
+        $stmt->execute();
+        $bannerImages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $response->getBody()->write(json_encode($bannerImages));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    } catch (PDOException $e) {
+        $res = ["message" => "Database error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    } catch (Exception $e) {
+        $res = ["message" => "Internal server error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+});
