@@ -313,7 +313,7 @@ $app->get("/geteventphotos", function (Request $request, Response $response) {
     try {
         $database = new db();
         $database = $database->connect();
-        $stmt = $database->prepare("SELECT event_id, photo_url,uploaded_on FROM event_photos");
+      $stmt = $database->prepare("SELECT ep.event_id, ep.photo_url, ep.uploaded_on, e.event_name FROM event_photos ep INNER JOIN events e ON ep.event_id = e.event_id");
         $stmt->execute();
         $eventPhotos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $response->getBody()->write(json_encode($eventPhotos));
