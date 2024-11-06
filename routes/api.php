@@ -309,6 +309,7 @@ $app->get("/getuser", function (Request $request, Response $response){
         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
 })->add($AuthMiddleware);
+
 $app->get("/geteventphotos", function (Request $request, Response $response) {
     try {
         $database = new db();
