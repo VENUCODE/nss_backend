@@ -83,6 +83,7 @@ $app->group('/events', function (RouteCollectorProxy $group) use($AuthMiddleware
                     res.ec_name, 
                     res.ec_id, 
                     res.event_name, 
+                    res.description,
                     res.hosted_on, 
                     res.location, 
                     COALESCE(photo_urls.photo_urls, '[]') AS photo_urls, 
@@ -93,6 +94,7 @@ $app->group('/events', function (RouteCollectorProxy $group) use($AuthMiddleware
                         ec.ec_name, 
                         e.ec_id, 
                         e.event_name, 
+                        e.description,
                         e.hosted_on, 
                         e.location 
                      FROM 
@@ -100,7 +102,7 @@ $app->group('/events', function (RouteCollectorProxy $group) use($AuthMiddleware
                      INNER JOIN 
                         event_category ec ON e.ec_id = ec.ec_id
                      WHERE 
-                        e.event_id = :event_id) AS res 
+                        e.event_id = :event_id ) AS res 
                 LEFT JOIN 
                     (SELECT 
                         event_id, 
@@ -250,7 +252,78 @@ $app->group('/events', function (RouteCollectorProxy $group) use($AuthMiddleware
     })->setName('category');
     
    
+    $group->get('/gettopevents',function(Request $request,Response $response){
+        $sql = "
+        SELECT 
+            e.event_id,
+            e.event_name,
+            e.hosted_on,
+            ep.photo_url
+        FROM 
+            events e
+        LEFT JOIN (
+            SELECT 
+                event_id, 
+                MIN(photo_url) AS photo_url 
+            FROM 
+                event_photos
+            GROUP BY 
+                event_id
+        ) ep ON e.event_id = ep.event_id
+        ORDER BY 
+            e.hosted_on DESC
+        LIMIT 10
+    ";
+    try {
+        $database = new db();
+        $database = $database->connect();
+        $stmt = $database->prepare($sql);
+        $stmt->execute();
+        $events=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        $response->getBody()->write(json_encode($events));
+        return $response->withStatus(200)->withHeader("Content-Type", "application/json");
+    } catch (PDOException $e) {
+        $response->getBody()->write(json_encode(['error' => ['text' => $e->getMessage()]]));
+        return $response->withStatus(500)->withHeader("Content-Type", "application/json");
+    }
     
+    })->setName("gettopevents");
+    $group->get('/gettopphotos',function(Request $request,Response $response){
+        $sql = "
+        SELECT 
+            e.event_id,
+            e.event_name,
+            e.hosted_on,
+            ep.photo_url
+        FROM 
+            events e
+        LEFT JOIN (
+            SELECT 
+                event_id, 
+                max(photo_url) as photo_url
+            FROM 
+                event_photos
+            GROUP BY 
+                event_id
+        ) ep ON e.event_id = ep.event_id
+        ORDER BY 
+            e.hosted_on desc
+              LIMIT 10
+    ";
+    try {
+        $database = new db();
+        $database = $database->connect();
+        $stmt = $database->prepare($sql);
+        $stmt->execute();
+        $events=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        $response->getBody()->write(json_encode($events));
+        return $response->withStatus(200)->withHeader("Content-Type", "application/json");
+    } catch (PDOException $e) {
+        $response->getBody()->write(json_encode(['error' => ['text' => $e->getMessage()]]));
+        return $response->withStatus(500)->withHeader("Content-Type", "application/json");
+    }
+    
+    })->setName("gettopphotos");
     $group->get('/getcategories',function(Request $request,Response $response){
         $sql = "SELECT ec_id,ec_name FROM event_category order by ec_id";
         try {
@@ -353,3 +426,4 @@ $app->group('/events', function (RouteCollectorProxy $group) use($AuthMiddleware
     })->setName('updatecategory');
     
 });
+

@@ -85,7 +85,7 @@ $app->add(function (Request $request, Handler $handler) {
 //     }
 // });
 
-$app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/{routes:.+}', function (Request $request, Response $response) {
+$app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH','OPTIONS'], '/{routes:.+}', function (Request $request, Response $response) {
     $response = $response->withStatus(404);
     $response->getBody()->write(json_encode(['message'=>'Route not Found']));
     return $response->withHeader('Content-Type','Application/json');

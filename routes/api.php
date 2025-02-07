@@ -4,13 +4,8 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Firebase\JWT\JWT;
 require_once __DIR__ . "/../middleware/FileUploadMiddleware.php";
 require_once __DIR__ . "/../middleware/AuthenticationMiddleware.php";
+require_once __DIR__ . "/../middleware/FileExtensionMiddleware.php";
 
-$app->get('/', function (Request $request, Response $response, $args) {
-    $res = ["message" => "Server is running"];
-    $response_str = json_encode($res);
-    $response->getBody()->write($response_str);
-    return $response->withHeader("Content-Type", "application/json");
-});
 // $app->get('/hash', function (Request $request, Response $response, $args) {
 //     $data = json_decode($request->getBody(), true);
 //     $pass = $data['password'] ?? '';
@@ -26,6 +21,13 @@ $app->get('/', function (Request $request, Response $response, $args) {
 //     $response->getBody()->write($response_str);
 //     return $response->withHeader("Content-Type", "application/json");
 // });
+
+$app->get('/', function (Request $request, Response $response, $args) {
+    $res = ["message" => "Server is running"];
+    $response_str = json_encode($res);
+    $response->getBody()->write($response_str);
+    return $response->withHeader("Content-Type", "application/json");
+});
 $app->post('/adduser', function (Request $request, Response $response, $args) {
     try {
     
@@ -77,11 +79,10 @@ $app->post('/adduser', function (Request $request, Response $response, $args) {
             $stmt->bindParam(':user_password', $hashed_password);
             $stmt->execute();
         
-            $stmt = $database->prepare("INSERT INTO members (member_id, role_id,designation, added_by) VALUES (:member_id, :role_id,:desig, :added_by)");
+            $stmt = $database->prepare("INSERT INTO members (member_id, role_id, added_by) VALUES (:member_id, :role_id, :added_by)");
             $stmt->bindParam(':member_id', $user_id);
             $rid=1;
             $stmt->bindParam(':role_id', $rid);
-            $stmt->bindParam(':design',$designation);
             $stmt->bindParam(':added_by', $added_by);
             $stmt->execute();
         }
@@ -201,6 +202,43 @@ $app->post('/login', function (Request $request, Response $response, $args) {
     $response->getBody()->write($payload);
     return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 });
+
+
+$app->post('/addunits', function (Request $request, Response $response, $args) {
+    try {
+        $filePaths = $request->getAttribute('fileNames') ?? [];
+        $added_by=$request->getAttribute("user_id");
+        if (empty($filePaths)) {
+            $response->getBody()->write(json_encode(["message"=>"Units data can't be empty","error"=>"No file sent"]));
+            return $response->withHeader("Content-type","application/json")->withStatus(401);
+        }
+        $database = new db();
+        $database = $database->connect();
+        $stmt = $database->prepare("INSERT INTO units (unit_title, unit_path,added_by) VALUES (:unit_title, :unit_path,:addedby)");
+        $unitTitle = $request->getAttribute('parsedBody')['title'] ?? '';
+        $csvFile = "/uploads/unit_csv/".$filePaths["file"];
+        $stmt->bindParam(':unit_title', $unitTitle);
+        $stmt->bindParam(':unit_path', $csvFile); 
+        $stmt->bindParam(':addedby', $added_by);
+        $stmt->execute();
+        $res = ["message" => "Units data added successfully"];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+    } catch (PDOException $e) {
+        $res = ["message" => "Database error: " . $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    } catch (Exception $e) {
+        $res = ["message" => "Internal server error: " ,"error"=>$e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+})->add($AuthMiddleware)->add(UploadMiddleware(dirname(__DIR__,1)."/uploads/unit_csv"));
+
+
 $app->get('/uploads/event_photos/{filename}', function (Request $request, Response $response,array  $args) {
 
     $filePath =dirname( __DIR__ ,1). '/uploads/event_photos/' . basename($args['filename']);
@@ -213,6 +251,7 @@ $app->get('/uploads/event_photos/{filename}', function (Request $request, Respon
     $mimeType = mime_content_type($filePath);
     return $response->withHeader('Content-Type', $mimeType)
                     ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
+                    ->withHeader('Cache-Control', 'public, max-age=31536000') 
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
 
@@ -228,6 +267,7 @@ $app->get('/uploads/user_photos/{filename}', function (Request $request, Respons
     $mimeType = mime_content_type($filePath);
     return $response->withHeader('Content-Type', $mimeType)
                     ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
+                    ->withHeader('Cache-Control', 'public, max-age=31536000') 
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
 
@@ -243,26 +283,57 @@ $app->get('/uploads/banner_photos/{filename}', function (Request $request, Respo
     $mimeType = mime_content_type($filePath);
     return $response->withHeader('Content-Type', $mimeType)
                     ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '"')
+                    ->withHeader('Cache-Control', 'public, max-age=31536000') 
                     ->withBody(new \Slim\Psr7\Stream(fopen($filePath, 'rb')));
 });
 
-$app->get("/getusers", function (Request $request, Response $response) {
-    $data = json_decode($request->getBody()->getContents(), true);
-    $user_ids = $data['user_ids'] ?? null;
+$app->get('/uploads/unit_csv/{filename}', function (Request $request, Response $response, array $args) {
+   
+    $filePath = dirname(__DIR__, 1) . '/uploads/unit_csv/' . basename($args['filename']);
 
-    if (empty($user_ids) || !is_array($user_ids)) {
-        $response->getBody()->write(json_encode(["message" => "Invalid input", "error" => "User IDs should be a non-empty array"])); 
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+    if (!file_exists($filePath)) {
+        $error = [
+            "error" => true,
+            "message" => "CSV file not found",
+            "file_path" => $filePath
+        ];
+        $response->getBody()->write(json_encode($error));
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus(404);
     }
 
-    $placeholders = implode(',', array_fill(0, count($user_ids), '?'));
-    $sql = "SELECT user_id, user_name, user_email, profile_photo FROM users WHERE user_id IN ($placeholders)";
-    
+
+    if (!is_readable($filePath)) {
+        $error = [
+            "error" => true,
+            "message" => "CSV file exists but is not readable"
+        ];
+        $response->getBody()->write(json_encode($error));
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus(403);
+    }
+
+   
+    $fileStream = fopen($filePath, 'rb');
+
+ 
+    return $response
+        ->withHeader('Content-Type', 'text/csv')
+        ->withHeader('Content-Disposition', 'inline; filename="' . basename($filePath) . '.csv"')
+        ->withHeader('Cache-Control', 'public, max-age=31536000')
+        ->withHeader('Last-Modified', gmdate('D, d M Y H:i:s', filemtime($filePath)) . ' GMT') 
+        ->withHeader('ETag', md5_file($filePath)) 
+        ->withBody(new \Slim\Psr7\Stream($fileStream));
+});
+$app->get("/getallusers", function (Request $request, Response $response) {
+    $sql = "SELECT user_id, user_name,designation, user_email, profile_photo FROM users WHERE user_id IN (select member_id from members)";
     try {
         $database = new db();
         $database = $database->connect();
         $stmt = $database->prepare($sql);
-        $stmt->execute($user_ids);
+        $stmt->execute();
         $userData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $response->getBody()->write(json_encode($userData));
@@ -353,3 +424,27 @@ $app->get("/getbannerimages", function (Request $request, Response $response) {
         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
 });
+
+$app->get("/getunitdata", function (Request $request, Response $response) {
+    try {
+        $database = new db();
+        $database = $database->connect();
+        $stmt = $database->prepare("SELECT * FROM `units` order by 1 desc;");
+        $stmt->execute();
+        $bannerImages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $response->getBody()->write(json_encode($bannerImages));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    } catch (PDOException $e) {
+        $res = ["message" => "Database error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    } catch (Exception $e) {
+        $res = ["message" => "Internal server error", "error" => $e->getMessage()];
+        $payload = json_encode($res);
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+});
+
+
