@@ -1,14 +1,38 @@
 
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
 
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
 
+CREATE DATABASE NSS;
+use NSS;
 
 CREATE TABLE `authusers` (
   `id` int(11) DEFAULT NULL,
   `user_password` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
 
+--
+-- Table structure for table `banner_images`
+--
+
+CREATE TABLE `banner_images` (
+  `photo_url` varchar(255) NOT NULL,
+  `sno` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `events`
+--
 
 CREATE TABLE `events` (
   `event_id` int(11) NOT NULL,
@@ -17,7 +41,8 @@ CREATE TABLE `events` (
   `hosted_on` date DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `location` varchar(255) DEFAULT NULL
+  `location` varchar(255) DEFAULT NULL,
+  `description` mediumtext NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -90,9 +115,9 @@ CREATE TABLE `roles` (
 
 CREATE TABLE `units` (
   `unit_id` int(11) NOT NULL,
-  `unit_number` int(11) NOT NULL,
-  `start_year` date DEFAULT NULL,
-  `end_year` date DEFAULT NULL
+  `unit_title` varchar(255) NOT NULL,
+  `unit_path` varchar(255) NOT NULL,
+  `added_by` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -121,13 +146,24 @@ CREATE TABLE `users` (
   `user_number` bigint(20) DEFAULT NULL,
   `user_al_number` bigint(20) DEFAULT NULL,
   `profile_photo` varchar(255) DEFAULT NULL,
-  `description` text default null
+  `description` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for dumped tables
+--
+
 --
 -- Indexes for table `authusers`
 --
 ALTER TABLE `authusers`
   ADD KEY `fk_auth_user` (`id`);
+
+--
+-- Indexes for table `banner_images`
+--
+ALTER TABLE `banner_images`
+  ADD PRIMARY KEY (`sno`);
 
 --
 -- Indexes for table `events`
@@ -176,7 +212,8 @@ ALTER TABLE `roles`
 -- Indexes for table `units`
 --
 ALTER TABLE `units`
-  ADD PRIMARY KEY (`unit_id`);
+  ADD PRIMARY KEY (`unit_id`),
+  ADD KEY `fk_unists` (`added_by`);
 
 --
 -- Indexes for table `unit_members`
@@ -192,11 +229,15 @@ ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `user_email` (`user_email`);
 
-
-
 --
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `banner_images`
+--
+ALTER TABLE `banner_images`
+  MODIFY `sno` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `events`
@@ -233,8 +274,6 @@ ALTER TABLE `units`
 --
 ALTER TABLE `users`
   MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
-
-
 
 --
 -- Constraints for dumped tables
@@ -274,9 +313,15 @@ ALTER TABLE `members`
   ADD CONSTRAINT `fk_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`);
 
 --
+-- Constraints for table `units`
+--
+ALTER TABLE `units`
+  ADD CONSTRAINT `fk_unists` FOREIGN KEY (`added_by`) REFERENCES `users` (`user_id`);
+
+--
 -- Constraints for table `unit_members`
 --
 ALTER TABLE `unit_members`
   ADD CONSTRAINT `fk_member_unit` FOREIGN KEY (`member_id`) REFERENCES `members` (`member_id`),
   ADD CONSTRAINT `fk_unit` FOREIGN KEY (`unit_id`) REFERENCES `units` (`unit_id`);
-
+COMMIT;

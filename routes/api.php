@@ -6,21 +6,21 @@ require_once __DIR__ . "/../middleware/FileUploadMiddleware.php";
 require_once __DIR__ . "/../middleware/AuthenticationMiddleware.php";
 require_once __DIR__ . "/../middleware/FileExtensionMiddleware.php";
 
-// $app->get('/hash', function (Request $request, Response $response, $args) {
-//     $data = json_decode($request->getBody(), true);
-//     $pass = $data['password'] ?? '';
-//     if (empty($pass)) {
-//         $res = ["message" => "Password is required"];
-//         $response_str = json_encode($res);
-//         $response->getBody()->write($response_str);
-//         return $response->withHeader("Content-Type", "application/json")->withStatus(422);
-//     }
-//     $hashed_password = password_hash($pass, PASSWORD_BCRYPT);
-//     $res = ["hashed" => $hashed_password];
-//     $response_str = json_encode($res);
-//     $response->getBody()->write($response_str);
-//     return $response->withHeader("Content-Type", "application/json");
-// });
+$app->get('/hash', function (Request $request, Response $response, $args) {
+    $data = json_decode($request->getBody(), true);
+    $pass = $data['password'] ?? '';
+    if (empty($pass)) {
+        $res = ["message" => "Password is required"];
+        $response_str = json_encode($res);
+        $response->getBody()->write($response_str);
+        return $response->withHeader("Content-Type", "application/json")->withStatus(422);
+    }
+    $hashed_password = password_hash($pass, PASSWORD_BCRYPT);
+    $res = ["hashed" => $hashed_password];
+    $response_str = json_encode($res);
+    $response->getBody()->write($response_str);
+    return $response->withHeader("Content-Type", "application/json");
+});
 
 $app->get('/', function (Request $request, Response $response, $args) {
     $res = ["message" => "Server is running"];
